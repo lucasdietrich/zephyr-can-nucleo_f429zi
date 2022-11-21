@@ -1,0 +1,11 @@
+#include "dt-bindings/pinctrl/stm32-pinctrl-common.h"
+
+&can1 {
+    status = "okay";
+    pinctrl-names  = "default";
+    pinctrl-0 = <&can1_rx_pd0 &can1_tx_pd1>;
+    bus-speed = <500000>;
+
+    sample-point = <875>; /* recommended value */
+    sjw = <0x1>;
+};
