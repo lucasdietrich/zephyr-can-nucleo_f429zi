@@ -3,7 +3,20 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <version.h>
 
+#if KERNEL_VERSION_NUMBER == ZEPHYR_VERSION(3, 0, 0)
+#include <device.h>
+#include <devicetree.h>
+#include <drivers/can.h>
+#include <drivers/gpio.h>
+#include <kernel.h>
+
+#include <logging/log.h>
+
+typedef struct zcan_frame can_frame_t;
+typedef struct zcan_filter can_filter_t;
+#else
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/can.h>
@@ -11,6 +24,11 @@
 #include <zephyr/kernel.h>
 
 #include <zephyr/logging/log.h>
+
+typedef struct can_frame can_frame_t;
+typedef struct can_filter can_filter_t;
+#endif
+
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 /* Devicetree */
@@ -19,7 +37,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 #define BUTTON_NAME DT_PROP_OR(BUTTON_NODE, label, "sw0")
 
 /* CAN frame to be sent */
-static const struct can_frame frame = {
+static const can_frame_t frame = {
 	.id_type = CAN_STANDARD_IDENTIFIER,
 	.id = 0x7c9,
 	.rtr = CAN_DATAFRAME,
@@ -45,7 +63,11 @@ static void button_callback(const struct device *port, struct gpio_callback *cb,
 }
 #endif /* DT_NODE_EXISTS(BUTTON_NODE) */
 
+#if KERNEL_VERSION_NUMBER == ZEPHYR_VERSION(3, 0, 0)
+static void can_tx_callback(int error, void *user_data)
+#else
 static void can_tx_callback(const struct device *dev, int error, void *user_data)
+#endif
 {
 	LOG_INF("CAN frame sent");
 	struct k_sem *tx_queue_sem = user_data;
@@ -73,7 +95,7 @@ void main(void)
 		return;
 	}
 
-	struct can_filter filter = {
+	can_filter_t filter = {
 		.id_type = CAN_STANDARD_IDENTIFIER,
 		.rtr_mask = 0,
 		.id = 0x7cd,
@@ -86,11 +108,13 @@ void main(void)
 		return;
 	}
 
+#if KERNEL_VERSION_NUMBER == ZEPHYR_VERSION(3, 2, 0)
 	err = can_start(dev);
 	if (err != 0) {
 		printk("Error starting CAN controller [%d]", err);
 		return;
 	}
+#endif
 
 #if DT_NODE_EXISTS(BUTTON_NODE)
 	k_sem_init(&btn_cb_ctx.sem, 0, 1);
@@ -153,7 +177,7 @@ void main(void)
 			}
 
 			if (events[1].state == K_POLL_STATE_MSGQ_DATA_AVAILABLE) {
-				struct can_frame rx_frame;
+				can_frame_t rx_frame;
 				err = k_msgq_get(&rxq, &rx_frame, K_NO_WAIT);
 				if (err == 0) {
 					LOG_INF("received CAN frame ID 0x%0*x, RTR %d, DLC %d, data %02x %02x %02x %02x %02x %02x %02x %02x",

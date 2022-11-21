@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.asm": "avr",
+        "version.h": "c"
+    }
+}
